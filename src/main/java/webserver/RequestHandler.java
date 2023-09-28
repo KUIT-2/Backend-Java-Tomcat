@@ -2,12 +2,19 @@ package webserver;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class RequestHandler implements Runnable{
     Socket connection;
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
+    private String WEBAPP_PATH = "./webapp";
+    private String Index_PATH = "/index.html";
+    private String Form_PATH = "/user/form.html";
+
+    //private String Signup_PATH = "/user/signup";
 
     public RequestHandler(Socket connection) {
         this.connection = connection;
@@ -19,8 +26,33 @@ public class RequestHandler implements Runnable{
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()){
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
+            String startline = br.readLine();
+            String[] lines = startline.split(" ");
+            String method = lines[0];
+            String url = lines[1];
+            System.out.println("url : " + url);
+            while(true){
+                String line = br.readLine();
+                if(line.equals(""))
+                {
+                    System.out.println("---------------------------");
+                    break;
+                }
+                System.out.println(line);
+            }
 
-            byte[] body = "Hello World".getBytes();
+            if(url.equals("/")){
+                url = WEBAPP_PATH + Index_PATH;
+            }
+            if(url.equals("/user/form.html")){
+                url = WEBAPP_PATH + Form_PATH;
+            }
+
+
+
+
+
+            byte[] body = Files.readAllBytes(Paths.get(url));
             response200Header(dos, body.length);
             responseBody(dos, body);
 
