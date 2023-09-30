@@ -1,6 +1,8 @@
 package webserver;
 
 import db.MemoryUserRepository;
+import http.util.HttpRequestUtils;
+import http.util.IOUtils;
 import model.User;
 
 import java.io.*;
@@ -30,20 +32,30 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            byte[] body = "Hello World".getBytes();
-            response200Header(dos, body.length);
-            responseBody(dos, body);
-            //경로 할당
-            String requestPath = parseRequestPath(br);
-            if(requestPath.equals("/")||requestPath.equals("/index.html")){
-                serverFile("webapp/index.html",dos);
-            }
-            else if(requestPath.equals("/form.html")){
-                serverFile("user/form.html",dos);
-            }else if(requestPath.equals("/user/signup")){
-                handleFormSubmission(br,dos);//GET방식으로 구현
+            int contentLength = 0;
+            while (true){
+                String line = br.readLine();
+                if(line.equals("")){
+                    break;
+                }
+                if(line.startsWith("Content-Length")){
+                    contentLength = Integer.parseInt(line.split(": ")[1]);
+                }
             }
 
+            String requestBody = IOUtils.readBody(br, contentLength);
+
+            handleFormSubmission(requestBody,dos);
+//             경로 할당
+//           String requestPath = parseRequestPath(br);
+//            if(requestPath.equals("/")||requestPath.equals("/index.html")){
+//                serverFile("webapp/index.html",dos);
+//            }
+//            else if(requestPath.equals("/form.html")){
+//                serverFile("user/form.html",dos);
+//            }else if(requestPath.equals("/user/signup")){
+//                handleFormSubmission(br,dos);//GET방식으로 구현
+//            }
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
@@ -68,24 +80,9 @@ public class RequestHandler implements Runnable{
 
     /* form.html 에서 제출된 데이터를 처리
      * 회원 추가 */
-    private void handleFormSubmission(BufferedReader br,DataOutputStream dos) throws IOException {
-        StringBuilder formData = new StringBuilder();
-        String inputLineData ;
-        while ((inputLineData = br.readLine()) != null && !inputLineData.isEmpty()){
-            formData.append(inputLineData).append("\n");
-        }
-        /* &기호를 기준으로 key-value 쌍을 구분해서 담기 */
-        String[] formPairs = formData.toString().split("&");
-        /* 해쉬맵은 key & value 값을 쌍으로 저장학 위해 */
-        Map<String, String> formDataMap = new HashMap<>();
-        for (String pair : formPairs) {
-            String[] keyValue = pair.split("=");
-            if (keyValue.length == 2) {
-                String key = URLDecoder.decode(keyValue[0], StandardCharsets.UTF_8);
-                String value = URLDecoder.decode(keyValue[1], StandardCharsets.UTF_8);
-                formDataMap.put(key, value);
-            }
-        }
+    private void handleFormSubmission(String requestBody, DataOutputStream dos) throws IOException {
+        // 파싱 및 처리
+        Map<String, String> formDataMap = HttpRequestUtils.parseQueryParameter(requestBody);
 
         MemoryUserRepository userRepository = MemoryUserRepository.getInstance();
         String userId = formDataMap.get("userId");
@@ -93,14 +90,17 @@ public class RequestHandler implements Runnable{
         String name = formDataMap.get("name");
         String email = formDataMap.get("email");
 
+        // 새로운 사용자 생성 및 UserRepository에 추가
         User newUser = new User(userId, password, name, email);
         userRepository.addUser(newUser);
 
+        // 회원 가입 성공 후 index.html로 리디렉션을 위한 응답 생성
         String redirectHtml = "<meta http-equiv=\"refresh\" content=\"0;url=/index.html\">";
         byte[] body = redirectHtml.getBytes();
         response200Header(dos, body.length);
         responseBody(dos, body);
     }
+
     /* 정상 적으로 요청 처리 */
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
