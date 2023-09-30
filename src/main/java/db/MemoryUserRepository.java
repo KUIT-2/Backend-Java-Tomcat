@@ -13,7 +13,7 @@ public class MemoryUserRepository implements Repository {
     private MemoryUserRepository() {
     }
 
-    public static MemoryUserRepository getInstance() {
+    public static MemoryUserRepository getInstance() { // 싱글톤 디자인 패턴 중 하나다.
         if (memoryUserRepository == null) {
             memoryUserRepository = new MemoryUserRepository();
             return memoryUserRepository;

@@ -9,12 +9,14 @@ import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
 public class WebServer {
-    private static final int DEFAULT_PORT = 80;
+    private static final int DEFAULT_PORT = 8080;
     private static final int DEFAULT_THREAD_NUM = 50;
     private static final Logger log = Logger.getLogger(WebServer.class.getName());
+    // https://sdesigner.tistory.com/100
 
     public static void main(String[] args) throws IOException {
         int port = DEFAULT_PORT;
+        // 쓰레드 풀을 다룬다.
         ExecutorService service = Executors.newFixedThreadPool(DEFAULT_THREAD_NUM);
 
         if (args.length != 0) {
@@ -31,6 +33,5 @@ public class WebServer {
                 service.submit(new RequestHandler(connection));
             }
         }
-
     }
 }
