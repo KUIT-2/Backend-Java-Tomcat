@@ -30,7 +30,7 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
             // http request 분석 및 출력
             String line;
-            StringBuilder httpRequest = new StringBuilder();
+            StringBuilder httpRequestHeader = new StringBuilder();
             int requestContentLength = 0;
             // startLine 분석
             String[] startLines = br.readLine().split(" ");
@@ -48,9 +48,16 @@ public class RequestHandler implements Runnable{
                 if (line.startsWith("Content-Length")){
                     requestContentLength = Integer.parseInt(line.split(": ")[1]);
                 }
-                httpRequest.append(line).append("\n");
+                httpRequestHeader.append(line).append("\n");
             }
-            log.log(Level.INFO, httpRequest.toString());
+            log.log(Level.INFO, httpRequestHeader.toString());
+
+            // body 분석
+            if (requestContentLength > 0){
+                String requestBody = IOUtils.readBody(br, requestContentLength);
+                log.log(Level.SEVERE, requestBody);
+            }
+
             byte[] body = new byte[0];
             // 요구사항 1. 파일 반환
             if (method.equals("GET") && url.endsWith(".html")){
@@ -62,8 +69,21 @@ public class RequestHandler implements Runnable{
                 String queryString = url.split("\\?")[1];
                 User newUser = User.fromQueryString(queryString);
                 userDB.addUser(newUser);
-                body = Files.readAllBytes(Paths.get(ROOT_DIR, HOME_URL));
                 response302Header(dos, HOME_URL);
+                return;
+            }
+
+            // 요구사항 3. POST 회원가입
+            if (method.equals("POST") && url.equals("/user/signup")){
+                MemoryUserRepository userDB = MemoryUserRepository.getInstance();
+                if (requestContentLength > 0){
+                    String requestBody = IOUtils.readBody(br, requestContentLength);
+                    User newUser = User.fromQueryString(requestBody);
+                    userDB.addUser(newUser);
+                    response302Header(dos, HOME_URL);
+                    return;
+                }
+                // TODO: Exception?
             }
             response200Header(dos, body.length);
             responseBody(dos, body);
