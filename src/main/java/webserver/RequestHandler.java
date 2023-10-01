@@ -1,7 +1,12 @@
 package webserver;
 
+import db.MemoryUserRepository;
+import model.User;
+
 import java.io.*;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,9 +41,59 @@ public class RequestHandler implements Runnable{
                 }
             }
 
+            if (line != null && (line.startsWith("GET /user/form.html"))) {
+                byte[] body = loadFile("user/form.html");
+                if (body != null) {
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                } else {
+                    byte[] notFoundBody = "404 Not Found".getBytes();
+                    response404Header(dos, notFoundBody.length);
+                    responseBody(dos, notFoundBody);
+                }
+            }
+
+            if(line != null && line.startsWith("GET /user/signup")) {
+                String queryString = line.split("\\?")[1].split(" ")[0];
+                Map<String, String> queryParams = parseQueryString(queryString);
+
+                String userId = queryParams.get("userId");
+                String password = queryParams.get("password");
+                String name = queryParams.get("name");
+                String email = queryParams.get("email");
+
+                User newUser = new User(userId, password, name, email);
+                MemoryUserRepository.getInstance().addUser(newUser);
+
+                redirectResponse(dos, "/");
+            }
+
+
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
+    }
+
+    private void redirectResponse(DataOutputStream dos, String locaion) {
+        try{
+            dos.writeBytes("HTTP/1.1 302Found \r\n");
+            dos.writeBytes("Location: " + locaion + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private Map<String, String> parseQueryString(String queryString) {
+        Map<String, String> params = new HashMap<>();
+        for (String param : queryString.split("&")) {
+            String[] keyValue = param.split("=");
+            if (keyValue.length > 1) {
+                params.put(keyValue[0], keyValue[1]);
+            }
+        }
+
+        return params;
     }
 
 
