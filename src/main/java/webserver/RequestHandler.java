@@ -28,7 +28,9 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            String line =  br.readLine();
+            String line = br.readLine();
+            int contentLength = 0;
+
             if (line != null && (line.startsWith("GET / ") || (line.startsWith("GET /index.html")))) {
                 byte[] body = loadFile("index.html");
                 if (body != null) {
@@ -53,20 +55,34 @@ public class RequestHandler implements Runnable{
                 }
             }
 
-            if(line != null && line.startsWith("GET /user/signup")) {
-                String queryString = line.split("\\?")[1].split(" ")[0];
-                Map<String, String> queryParams = parseQueryString(queryString);
+            if (line != null && line.startsWith("POST /user/signup")) {
+                while (true) {
+                    line = br.readLine();
+                    if (line.equals("")) {
+                        break;
+                    }
 
-                String userId = queryParams.get("userId");
-                String password = queryParams.get("password");
-                String name = queryParams.get("name");
-                String email = queryParams.get("email");
+                    if (line.startsWith("Content-Length")) {
+                        contentLength = Integer.parseInt(line.split(": ")[1]);
+                    }
+                }
+                char[] bodyChars = new char[contentLength];
+                br.read(bodyChars, 0, contentLength);
+                String requestBody = new String(bodyChars);
 
-                User newUser = new User(userId, password, name, email);
-                System.out.println(newUser + "\n\n");
+                Map<String, String> bodyParams = parseQueryString(requestBody);
+
+                String userId = bodyParams.get("userId");
+                String password = bodyParams.get("password");
+                String name = bodyParams.get("name");
+                String email = bodyParams.get("email");
+
+                User newUser = new User(userId, password, name,email);
+
                 MemoryUserRepository.getInstance().addUser(newUser);
 
                 redirectResponse(dos, "/");
+
             }
 
 
