@@ -1,5 +1,6 @@
 package webserver;
 
+import controller.*;
 import db.MemoryUserRepository;
 import db.Repository;
 import http.constants.HttpHeader;
@@ -24,7 +25,7 @@ public class RequestHandler implements Runnable{
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
 
     private final Repository repository;
-    private final Path homePath = Paths.get(ROOT.getUrl() + INDEX.getUrl());
+    private Controller controller = new ForwardController();
 
 
     public RequestHandler(Socket connection) {
@@ -35,7 +36,7 @@ public class RequestHandler implements Runnable{
     @Override
     public void run() {
         log.log(Level.INFO, "New Client Connect! Connected IP : " + connection.getInetAddress() + ", Port : " + connection.getPort());
-        try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()){
+        try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
@@ -45,61 +46,8 @@ public class RequestHandler implements Runnable{
             HttpRequest httpRequest = HttpRequest.from(br);
             HttpResponse httpResponse = new HttpResponse(dos);
 
-            // 요구 사항 1번
-            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".html")) {
-                httpResponse.forward(httpRequest.getUrl());
-                return;
-            }
-
-            if (httpRequest.getUrl().equals("/")) {
-                httpResponse.forward(INDEX.getUrl());
-                return;
-            }
-
-            // 요구 사항 2,3,4번
-            if (httpRequest.getUrl().equals("/user/signup")) {
-                Map<String, String> queryParameter = httpRequest.getQueryParametersFromBody();
-                User user = new User(queryParameter.get(UserQueryKey.ID.getKey()),
-                        queryParameter.get(UserQueryKey.PASSWORD.getKey()),
-                        queryParameter.get(UserQueryKey.NAME.getKey()),
-                        queryParameter.get(UserQueryKey.EMAIL.getKey()));
-                repository.addUser(user);
-                httpResponse.redirect(INDEX.getUrl());
-                return;
-            }
-
-            // 요구 사항 5번
-            if (httpRequest.getUrl().equals("/user/login")) {
-                Map<String, String> queryParameter = httpRequest.getQueryParametersFromBody();
-                User user = repository.findUserById(queryParameter.get("userId"));
-                login(httpResponse, queryParameter, user);
-                return;
-            }
-
-            // 요구 사항 6번
-            if (httpRequest.getUrl().equals("/user/userList")) {
-                if (!httpRequest.getHeader(HttpHeader.COOKIE).equals("logined=true")) {
-                    response302Header(dos, LOGIN.getUrl());
-                    return;
-                }
-                httpResponse.forward(USER_LIST_HTML.getUrl());
-            }
-
-            // 요구 사항 7번
-            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".css")) {
-                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + httpRequest.getUrl()));
-                response200HeaderWithCss(dos, body.length);
-                responseBody(dos, body);
-                return;
-            }
-
-            // image
-            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".jpeg")) {
-                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + httpRequest.getUrl()));
-                response200Header(dos, body.length);
-                responseBody(dos, body);
-                return;
-            }
+            RequestMapper requestMapper = new RequestMapper(httpRequest,httpResponse);
+            requestMapper.proceed();
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
@@ -142,18 +90,6 @@ public class RequestHandler implements Runnable{
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response302HeaderWithCookie(DataOutputStream dos, String path) {
-        try {
-            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-            dos.writeBytes("Location: " + path + "\r\n");
-            dos.writeBytes("Set-Cookie: logined=true" + "\r\n");
-
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
