@@ -2,9 +2,12 @@ package webserver;
 
 import db.MemoryUserRepository;
 import db.Repository;
+import http.constants.HttpHeader;
+import http.request.HttpRequest;
 import http.util.HttpRequestUtils;
 import model.User;
 import http.util.IOUtils;
+import model.constants.UserQueryKey;
 
 import java.io.*;
 import java.net.Socket;
@@ -43,60 +46,40 @@ public class RequestHandler implements Runnable{
             byte[] body = new byte[0];
 
             // Header 분석
-            String startLine = br.readLine();
-            String[] startLines = startLine.split(" ");
-            String method = startLines[0];
-            String url = startLines[1];
-
-            int requestContentLength = 0;
-            String cookie = "";
-
-            while (true) {
-                final String line = br.readLine();
-                if (line.equals("")) {
-                    break;
-                }
-                // header info
-                if (line.startsWith("Content-Length")) {
-                    requestContentLength = Integer.parseInt(line.split(": ")[1]);
-                }
-
-                if (line.startsWith("Cookie")) {
-                    cookie = line.split(": ")[1];
-                }
-            }
+            HttpRequest httpRequest = HttpRequest.from(br);
 
             // 요구 사항 1번
-            if (method.equals("GET") && url.endsWith(".html")) {
-                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + url));
+            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".html")) {
+                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + httpRequest.getUrl()));
             }
 
-            if (url.equals("/")) {
+            if (httpRequest.getUrl().equals("/")) {
                 body = Files.readAllBytes(homePath);
             }
 
             // 요구 사항 2,3,4번
-            if (url.equals("/user/signup")) {
-                String queryString = IOUtils.readData(br, requestContentLength);
-                Map<String, String> queryParameter = getQueryParameter(queryString);
-                User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
+            if (httpRequest.getUrl().equals("/user/signup")) {
+                Map<String, String> queryParameter = httpRequest.getQueryParametersFromBody();
+                User user = new User(queryParameter.get(UserQueryKey.ID.getKey()),
+                        queryParameter.get(UserQueryKey.PASSWORD.getKey()),
+                        queryParameter.get(UserQueryKey.NAME.getKey()),
+                        queryParameter.get(UserQueryKey.EMAIL.getKey()));
                 repository.addUser(user);
                 response302Header(dos, INDEX.getUrl());
                 return;
             }
 
             // 요구 사항 5번
-            if (url.equals("/user/login")) {
-                String queryString = IOUtils.readData(br, requestContentLength);
-                Map<String, String> queryParameter = getQueryParameter(queryString);
+            if (httpRequest.getUrl().equals("/user/login")) {
+                Map<String, String> queryParameter = httpRequest.getQueryParametersFromBody();
                 User user = repository.findUserById(queryParameter.get("userId"));
                 login(dos, queryParameter, user);
                 return;
             }
 
             // 요구 사항 6번
-            if (url.equals("/user/userList")) {
-                if (!cookie.equals("logined=true")) {
+            if (httpRequest.getUrl().equals("/user/userList")) {
+                if (!httpRequest.getHeader(HttpHeader.COOKIE).equals("logined=true")) {
                     response302Header(dos, LOGIN.getUrl());
                     return;
                 }
@@ -104,16 +87,16 @@ public class RequestHandler implements Runnable{
             }
 
             // 요구 사항 7번
-            if (method.equals("GET") && url.endsWith(".css")) {
-                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + url));
+            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".css")) {
+                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + httpRequest.getUrl()));
                 response200HeaderWithCss(dos, body.length);
                 responseBody(dos, body);
                 return;
             }
 
             // image
-            if (method.equals("GET") && url.endsWith(".jpeg")) {
-                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + url));
+            if (httpRequest.getMethod().isEqual("GET") && httpRequest.getUrl().endsWith(".jpeg")) {
+                body = Files.readAllBytes(Paths.get(ROOT.getUrl() + httpRequest.getUrl()));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
                 return;
