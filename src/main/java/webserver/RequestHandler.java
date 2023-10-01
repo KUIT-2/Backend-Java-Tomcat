@@ -44,16 +44,21 @@ public class RequestHandler implements Runnable{
             String requestTarget = startLines[1]; //HTTP Request가 전송되는 목표 주소
 
             int requestContentLength = 0;
+            String cookie = "";
 
             //header
             while (true){
                 final String line = br.readLine();
+                log.info("<header>" + line);
                 if(line.equals("")){ //blank line 이후부터는 body값이므로
                     break;
                 }
                 if (line.startsWith("Content-Length")) {
                     requestContentLength = Integer.parseInt(line.split(": ")[1]);
                     //parseInt : 문자열을 정수로 변환
+                }
+                if (line.startsWith("Cookie")) {
+                    cookie = line.split(": ")[1];
                 }
             }
 
@@ -101,6 +106,18 @@ public class RequestHandler implements Runnable{
                 login(dos, queryParam, repositoryUser);
             }
 
+            //요구사항 6번
+            if (httpMethod.equals("GET")&& (requestTarget.endsWith("/user/userList")||requestTarget.endsWith("/user/list.html"))){
+
+                if(cookie.equals("logined=true")){
+                    log.info("로그인 되어있음");
+                    response302HeaderWithCookie(dos, "/user/list.html");
+                }else{
+                    log.info("로그인 안되어있음");
+                    response302Header(dos,"/index.html");
+                }
+                return;
+            }
 
             response200Header(dos, body.length);
             responseBody(dos, body);
