@@ -40,7 +40,7 @@ public class RequestHandler implements Runnable {
 
             while (true) {
                 final String line = br.readLine();
-                if (line.equals("")) {
+                if (line == null || line.equals("")) {
                     break;
                 }
                 // header info
@@ -66,35 +66,46 @@ public class RequestHandler implements Runnable {
                     responseCSS(dos, body.length, "text/css");
                     responseBody(dos, body);
                     return;
-                } else {
+                }
+                // 요구사항 3
+                else if (requestURL.equals("/user/login.html")) {
+                    sendFile(dos, WEB_PORT + "/user/login.html");
+                }
+                //404
+                else {
                     send404NotFound(dos);
                 }
             }
+            // 요구사항 3
+            else if (httpMethod.equals("POST")) {
+                String requestBody = IOUtils.readData(br, requestContentLength);
+                log.log(Level.INFO, "POST_BODY: " + requestBody);
 
-            //요구사항 2
-            if (requestURL.equals("/user/signup")) {
-                String queryString = IOUtils.readData(br, requestContentLength);
-                log.log(Level.INFO, queryString);
-                String[] querySplit = queryString.split("&");
-                String userId = querySplit[0].split("=")[1];
-                String password = querySplit[1].split("=")[1];
-                String name = querySplit[2].split("=")[1];
-                String email = querySplit[3].split("=")[1];
+                //요구사항 2
+                if (requestURL.equals("/user/signup")) {
+//                    String queryString = IOUtils.readData(br, requestContentLength);
+//                    log.log(Level.INFO, queryString);
 
-                log.log(Level.INFO, "userId = " + userId + " pw = " + password + " name = " + name + " email = " + email);
+//                    String[] querySplit = queryString.split("&");
+                    String[] querySplit = requestBody.split("&");
+                    String userId = querySplit[0].split("=")[1];
+                    String password = querySplit[1].split("=")[1];
+                    String name = querySplit[2].split("=")[1];
+                    String email = querySplit[3].split("=")[1];
+                    log.log(Level.INFO, "userId = " + userId + " pw = " + password + " name = " + name + " email = " + email);
 
-                User user = new User(userId, password, name, email);
-                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                memoryUserRepository.addUser(user);
+                    User user = new User(userId, password, name, email);
+                    MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                    memoryUserRepository.addUser(user);
 
+                    sendRedirect(dos, "/");
+                }
 
-//                sendFile(dos, WEB_PORT + "/index.html");
+                if (requestURL.equals("/user/login")) {
 
-                sendRedirect(dos, "/");
-
+                }
             }
 
-//            byte[] body = "Hello World".getBytes();
             response200Header(dos, body.length);
             responseBody(dos, body);
 
