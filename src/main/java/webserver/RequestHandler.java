@@ -142,6 +142,37 @@ public class RequestHandler implements Runnable{
 
             }
 
+            if (line != null && line.startsWith("GET /user/userList")) {
+                boolean loggedIn = false;
+                while(!(line = br.readLine()).equals("")) {
+                    if(line.startsWith("Cookie")) {
+                        String cookies = line.split(": ")[1];
+                        loggedIn = cookies.contains("logined=true");
+                    }
+                }
+                if(loggedIn) {
+                    byte[] body = loadFile("user/list.html");
+                    if(body != null) {
+                        response200Header(dos, body.length);
+                        responseBody(dos, body);
+                    } else {
+                        byte[] notFoundBody = "404 Not Found".getBytes();
+                        response404Header(dos, notFoundBody.length);
+                        responseBody(dos, notFoundBody);
+                    }
+                } else {
+                    byte[] body = loadFile("user/login.html");
+                    if (body != null) {
+                        response200Header(dos, body.length);
+                        responseBody(dos, body);
+                    } else {
+                        byte[] notFoundBody = "404 Not Found".getBytes();
+                        response404Header(dos, notFoundBody.length);
+                        responseBody(dos, notFoundBody);
+                    }
+                }
+            }
+
 
 
 
