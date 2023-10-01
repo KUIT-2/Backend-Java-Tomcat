@@ -13,8 +13,10 @@ public class WebServer {
     private static final int DEFAULT_THREAD_NUM = 50;
     private static final Logger log = Logger.getLogger(WebServer.class.getName());
 
+    private static final int PORT = 8080;
+
     public static void main(String[] args) throws IOException {
-        int port = DEFAULT_PORT;
+        int port = PORT;
         ExecutorService service = Executors.newFixedThreadPool(DEFAULT_THREAD_NUM);
 
         if (args.length != 0) {
