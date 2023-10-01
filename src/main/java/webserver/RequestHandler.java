@@ -54,7 +54,10 @@ public class RequestHandler implements Runnable{
             } else if (requestPath.equals("/login")) {
                 // 로그인 부분
                 handleLogin(requestBody, dos);
-            } else if(requestPath.equals("/")||requestPath.equals("/index.html")){
+            } else if (requestPath.equals("/user/list")) {
+                //리스트 부분..!
+                handleUserListRequest(dos);
+            }else if(requestPath.equals("/")||requestPath.equals("/index.html")){
                 serverFile("webapp/index.html",dos);
             } else if(requestPath.equals("/form.html")){
                 serverFile("user/form.html",dos);
@@ -113,6 +116,27 @@ public class RequestHandler implements Runnable{
         String redirectUrl = "/login.html";
         response302Header(dos, redirectUrl);
     }
+
+    /* 리스트 부분 */
+    private void handleUserListRequest(DataOutputStream dos) {
+        try {
+            String userListPagePath = "webapp/user/userlist.html";
+            File file = new File(userListPagePath);
+            if (file.exists()) {
+                byte[] fileData = Files.readAllBytes(file.toPath());
+                response200Header(dos, fileData.length);
+                responseBody(dos, fileData);
+            } else {
+                String notFoundMessage = "404 Not Found: " + userListPagePath;
+                byte[] notFoundBody = notFoundMessage.getBytes();
+                response404Header(dos, notFoundBody.length);
+                responseBody(dos, notFoundBody);
+            }
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
     /* 로그인 부분 */
     private void handleLogin(String requestBody, DataOutputStream dos) {
         Map<String, String> formDataMap = HttpRequestUtils.parseQueryParameter(requestBody);
