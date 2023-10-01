@@ -1,19 +1,31 @@
 package webserver;
 
+import db.MemoryUserRepository;
+import db.Repository;
+import http.util.HttpRequestUtils;
+import http.util.IOUtils;
+import model.User;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static http.util.HttpRequestUtils.parseQueryParameter;
 
 public class RequestHandler implements Runnable{
     Socket connection;
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
     private static final String ROOT_URL = "./webapp";
 
+    private final Repository repository;
+
     public RequestHandler(Socket connection) {
         this.connection = connection;
+        repository = MemoryUserRepository.getInstance();
     }
 
     @Override
@@ -25,9 +37,11 @@ public class RequestHandler implements Runnable{
 
             byte[] body = "Hello World".getBytes();
 
-            String startLine[] = br.readLine().split(" ");
-            String httpMethod = startLine[0]; // GET, POST, PUT, DELETE 등
-            String requestTarget = startLine[1]; //HTTP Request가 전송되는 목표 주소
+            String startLine = br.readLine();
+            log.log(Level.INFO, startLine);
+            String startLines[] = startLine.split(" ");
+            String httpMethod = startLines[0]; // GET, POST, PUT, DELETE 등
+            String requestTarget = startLines[1]; //HTTP Request가 전송되는 목표 주소
 
             int requestContentLength = 0;
 
@@ -45,8 +59,24 @@ public class RequestHandler implements Runnable{
 
             log.info(requestTarget.toString());
             //요구사항 1번
-            if (httpMethod.equals("GET")&& (requestTarget.endsWith(".html") ||requestTarget.endsWith("/"))){
+            if (httpMethod.equals("GET")&& (requestTarget.endsWith("index.html") ||requestTarget.endsWith("/"))){
                 body = Files.readAllBytes(Paths.get(ROOT_URL + "/index.html"));
+            }
+
+            //요구사항 2번
+            if (httpMethod.equals("GET")&& requestTarget.endsWith("form.html")){
+                body = Files.readAllBytes(Paths.get(ROOT_URL + requestTarget));
+            }
+
+            //요구사항 2번
+            if (httpMethod.equals("POST")&& requestTarget.endsWith("/user/signup")){
+                String queryString = IOUtils.readData(br, requestContentLength);
+                log.log(Level.INFO, queryString);
+                Map<String, String> queryParameter = parseQueryParameter(queryString);
+                User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
+                repository.addUser(user);
+                response302Header(dos,"/index.html");
+                return;
             }
 
             response200Header(dos, body.length);
@@ -54,6 +84,16 @@ public class RequestHandler implements Runnable{
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
