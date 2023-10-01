@@ -7,6 +7,10 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 class HttpRequestUtilsTest {
 
+    void Request(){
+
+    }
+
     @Test
     void parseQuery() {
         Map<String, String> queryParameter = HttpRequestUtils.parseQueryParameter("userId=1");
