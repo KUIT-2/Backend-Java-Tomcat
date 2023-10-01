@@ -144,6 +144,7 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
+            dos.flush();
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
@@ -155,6 +156,7 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
+            dos.flush();
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
@@ -165,6 +167,7 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
             dos.writeBytes("\r\n");
+            dos.flush();
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
@@ -175,8 +178,8 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
             dos.writeBytes("Set-Cookie: logined=true" + "\r\n");
-
             dos.writeBytes("\r\n");
+            dos.flush();
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
