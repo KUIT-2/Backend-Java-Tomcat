@@ -33,78 +33,83 @@ public class RequestHandler implements Runnable{
             String requestPath = requestLine.split(" ")[1];
             System.out.println(requestPath);
             //회원가입 화면
-            if (requestPath.equals("/user/form.html")) {
-                byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\form.html"));
+            if (requestPath.equals(EnumUrlPath.SIGN_UP_FORM.getValue())) {
+                byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.SIGN_UP.getValue()));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
                 return;
             }
             //회원가입 POST
-            if (requestPath.equals("/user/signup")) {
+            if (requestPath.equals(EnumUrlPath.SIGN_UP_REQUEST.getValue())) {
                 int requestContentLength = getRequestContentLength(br);
                 String data = IOUtils.readData(br, requestContentLength);
                 Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(data);
 
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
+                User user = new User(
+                        requestMap.get(EnumUserField.userId.getValue()),
+                        requestMap.get(EnumUserField.password.getValue()),
+                        requestMap.get(EnumUserField.name.getValue()),
+                        requestMap.get(EnumUserField.email.getValue())
+                );
                 memoryUserRepository.addUser(user);
 
                 response302Header(dos, "/");
                 return;
             }
             //로그인 화면 GET
-            if (requestPath.equals("/user/login.html")) {
-                byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login.html"));
+            if (requestPath.equals(EnumUrlPath.LOGIN_FORM.getValue())) {
+                byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.LOGIN.getValue()));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
                 return;
             }
             //로그인 failed
-            if (requestPath.equals("/user/login_failed")) {
-                byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login_failed.html"));
+            if (requestPath.equals(EnumUrlPath.LOGIN_REQUEST_FAILED.getValue())) {
+                byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.LOGIN_FAILED.getValue()));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
                 return;
             }
             //로그인 요청 POST
-            if (requestPath.equals("/user/login")) {
+            if (requestPath.equals(EnumUrlPath.LOGIN_RUEST.getValue())) {
                 int requestContentLength = getRequestContentLength(br);
                 String data = IOUtils.readData(br, requestContentLength);
                 Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(data);
 
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User user = memoryUserRepository.findUserById(requestMap.get("userId"));
+                User user = memoryUserRepository.findUserById(requestMap.get(EnumUserField.userId.getValue()));
                 if (user != null) {
-                    boolean logined = user.getPassword().equals(requestMap.get("password"));
+                    boolean logined = user.getPassword().equals(requestMap.get(EnumUserField.password.getValue()));
                     if (logined) {
-                        response302HeaderLogin(dos, "/", true);
+                        response302HeaderLogin(dos, EnumUrlPath.INDEX.getValue(), true);
                     } else {
-                        response302HeaderLogin(dos, "/user/login_failed", false);
+                        response302HeaderLogin(dos, EnumUrlPath.LOGIN_REQUEST_FAILED.getValue(), false);
                     }
                 } else {
-                    response302HeaderLogin(dos, "/user/login_failed", false);
+                    response302HeaderLogin(dos, EnumUrlPath.LOGIN_REQUEST_FAILED.getValue(), false);
                 }
                 return;
             }
             //User List 출력
-            if (requestPath.equals("/user/userList") || requestPath.equals("/user/list.html")) {
+            if (requestPath.equals(EnumUrlPath.USER_LIST1.getValue()) || requestPath.equals(EnumUrlPath.USER_LIST2.getValue())) {
                 if (getIsRequestLoginedTrue(br)) {
-                    byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\list.html"));
+                    byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.USER_LIST.getValue()));
                     response200Header(dos, body.length);
                     responseBody(dos, body);
                     return;
                 }
-                response302Header(dos, "/user/login.html");
+                response302Header(dos, EnumUrlPath.LOGIN_FORM.getValue());
             }
             //css 요청
-            if (requestPath.endsWith("css")) {
-                byte[] body = Files.readAllBytes(Paths.get("webapp\\css\\styles.css"));
+            if (requestPath.equals(EnumUrlPath.CSS.getValue())) {
+                byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.CSS.getValue()));
                 response200HeaderCSS(dos, body.length);
                 responseBody(dos, body);
                 return;
             }
             //그 외에는 메인
-            byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
+            byte[] body = Files.readAllBytes(Paths.get(EnumFilePath.INDEX.getValue()));
             response200Header(dos, body.length);
             responseBody(dos, body);
 
@@ -137,7 +142,6 @@ public class RequestHandler implements Runnable{
             }
             // header info
             if (line.contains("logined")) {
-                System.out.println("eiwjofjweoifjweoif");
                 isLogined = Boolean.parseBoolean(line.split("=")[1]);
             }
         }
@@ -154,9 +158,13 @@ public class RequestHandler implements Runnable{
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes(
+                    EnumHTTPVersion.HTTP_1_1.getValue() + " " +
+                            EnumHTTPStatusCode.OK_200.getValue() + " " +
+                            EnumHTTPStatusMessage.OK_200.getValue() + "\r\n"
+            );
+            dos.writeBytes(EnumHTTPHeader.ContentTypeHtml.getValue() + "\r\n");
+            dos.writeBytes(EnumHTTPHeader.ContentLength.getValue() + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
@@ -165,29 +173,41 @@ public class RequestHandler implements Runnable{
 
     private void response200HeaderCSS(DataOutputStream dos, int lengthOfBodyContent) {
         try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes(
+                    EnumHTTPVersion.HTTP_1_1.getValue() + " " +
+                            EnumHTTPStatusCode.OK_200.getValue() + " " +
+                            EnumHTTPStatusMessage.OK_200 + "\r\n"
+            );
+            dos.writeBytes(EnumHTTPHeader.ContentTypeCSS.getValue() + "\r\n");
+            dos.writeBytes(EnumHTTPHeader.ContentLength.getValue() + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
     }
 
-    private void response302Header(DataOutputStream dos, String endpoint) {
+    private void response302Header(DataOutputStream dos, String urlPath) {
         try {
-            dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: " + endpoint + "\r\n");
+            dos.writeBytes(
+                    EnumHTTPVersion.HTTP_1_1.getValue() + " " +
+                            EnumHTTPStatusCode.Found_302.getValue() + " " +
+                            EnumHTTPStatusMessage.FOUND_302.getValue() + "\r\n"
+            );
+            dos.writeBytes(EnumHTTPHeader.Location.getValue() + urlPath + "\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
     }
 
-    private void response302HeaderLogin(DataOutputStream dos, String endPoint, Boolean logined) {
+    private void response302HeaderLogin(DataOutputStream dos, String urlPath, Boolean logined) {
         try {
-            dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Set-Cookie: logined=" + logined.toString() + "\r\n");
-            dos.writeBytes("Location: " + endPoint + "\r\n");
+            dos.writeBytes(
+                    EnumHTTPVersion.HTTP_1_1.getValue() + " " +
+                            EnumHTTPStatusCode.Found_302.getValue() + " " +
+                            EnumHTTPStatusMessage.FOUND_302.getValue() + "\r\n"
+            );
+            dos.writeBytes(EnumHTTPHeader.SetCookie.getValue() + "logined=" + logined.toString() + "\r\n");
+            dos.writeBytes(EnumHTTPHeader.Location.getValue() + urlPath + "\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
