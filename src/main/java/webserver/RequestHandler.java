@@ -30,13 +30,15 @@ public class RequestHandler implements Runnable {
             byte[] body = new byte[0];
 
             String requestLine = br.readLine();
-            log.log(Level.INFO, requestLine);
+            log.log(Level.INFO, "requestLine | " + requestLine);
             String[] request = requestLine.split(" ");
             String httpMethod = request[0];
             String requestURL = request[1];
             String httpVersion = request[2];
 
             int requestContentLength = 0;
+            boolean cookie = false;
+
 
             while (true) {
                 final String line = br.readLine();
@@ -44,8 +46,15 @@ public class RequestHandler implements Runnable {
                     break;
                 }
                 // header info
+
+                // 요구사항 6
+                log.log(Level.INFO, "Request Header | " + line.startsWith("Cookie: "));
+                cookie = line.startsWith("Cookie: ");
+                log.log(Level.INFO, "cookie | " + cookie);
+
                 if (line.startsWith("Content-Length")) {
                     requestContentLength = Integer.parseInt(line.split(": ")[1]);
+
                 }
             }
 
@@ -74,6 +83,15 @@ public class RequestHandler implements Runnable {
                 // 요구사항 5
                 else if (requestURL.equals("/user/login_failed.html")) {
                     sendFile(dos, WEB_PORT + "/user/login_failed.html");
+                }
+                // 요구사항 6
+                else if (requestURL.equals("/user/userList")) {
+
+                    if (cookie) {
+                        sendFile(dos, WEB_PORT + "/user/list.html");
+                    } else {
+                        sendRedirect(dos, "/user/login.html");
+                    }
                 }
                 //404
                 else {
