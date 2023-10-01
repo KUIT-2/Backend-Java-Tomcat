@@ -174,6 +174,19 @@ public class RequestHandler implements Runnable{
             }
 
 
+            if (line != null && line.endsWith(".css")) {
+                byte[] body = loadFileFromURL(line.split(" ")[1].substring(1));
+                if (body != null) {
+                    response200HeaderWithContentType(dos, body.length, "text/css");
+                    responseBody(dos, body);
+                } else {
+                    byte[] notFoundBody = "404 Not Found".getBytes();
+                    response404Header(dos, notFoundBody.length);
+                    responseBody(dos, notFoundBody);
+                }
+                return;
+            }
+
 
 
 
@@ -214,10 +227,40 @@ public class RequestHandler implements Runnable{
         return null;
     }
 
+    private byte[] loadFileFromURL(String url) throws IOException {
+        File file = new File(WEBAPP_PATH + url);
+        if (file.exists() && file.isFile()) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    bos.write(buffer, 0, bytesRead);
+                }
+
+                return bos.toByteArray();
+            }
+        }
+        return null;
+    }
+
     private void redirectResponse(DataOutputStream dos, String locaion) {
         try{
             dos.writeBytes("HTTP/1.1 302Found \r\n");
             dos.writeBytes("Location: " + locaion + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response200HeaderWithContentType(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: " + contentType + ";charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
