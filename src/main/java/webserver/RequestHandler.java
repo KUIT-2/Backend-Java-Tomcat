@@ -41,30 +41,47 @@ public class RequestHandler implements Runnable{
             //회원가입 POST
             if (requestPath.equals("/user/signup")) {
                 int requestContentLength = getRequestContentLength(br);
-
                 String data = IOUtils.readData(br, requestContentLength);
-
                 Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(data);
 
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
                 User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
                 memoryUserRepository.addUser(user);
 
-                byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
-                response302Header(dos, body.length);
+                response302Header(dos);
                 return;
             }
-            //회원가입 GET
-            /*if (requestPath.contains("/user/signup?")) {
-                String requestQuery = getQuery(requestPath);
-                Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(requestQuery);
+            //로그인 화면 GET
+            if (requestPath.equals("/user/login.html")) {
+                byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login.html"));
+                response200Header(dos, body.length);
+                responseBody(dos, body);
+            }
+            //로그인 failed
+            if (requestPath.equals("/user/login_failed")) {
+                byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login_failed.html"));
+                response200Header(dos, body.length);
+                responseBody(dos, body);
+            }
+            //로그인 요청 POST
+            if (requestPath.equals("/user/login")) {
+                int requestContentLength = getRequestContentLength(br);
+                String data = IOUtils.readData(br, requestContentLength);
+                Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(data);
 
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
-                User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
-                memoryUserRepository.addUser(user);
-
-                System.out.println(memoryUserRepository.findAll().size());
-            }*/
+                User user = memoryUserRepository.findUserById(requestMap.get("userId"));
+                if (user != null) {
+                    boolean logined = user.getPassword().equals(requestMap.get("password"));
+                    if (logined) {
+                        response302HeaderLogin(dos, "/", true);
+                    } else {
+                        response302HeaderLogin(dos, "/user/login_failed", false);
+                    }
+                } else {
+                    response302HeaderLogin(dos, "/user/login_failed", false);
+                }
+            }
             byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
             response200Header(dos, body.length);
             responseBody(dos, body);
@@ -108,10 +125,20 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private void response302Header(DataOutputStream dos, int lengthOfBodyContent) {
+    private void response302Header(DataOutputStream dos) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
             dos.writeBytes("Location: /\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302HeaderLogin(DataOutputStream dos, String endPoint, Boolean logined) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Location: " + endPoint + "\r\n");
+            dos.writeBytes("Cookie: logined=" + logined.toString());
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
