@@ -22,7 +22,7 @@ public class WebServer {
         }
 
         // TCP 환영 소켓
-        try (ServerSocket welcomeSocket = new ServerSocket(port)){
+        try (ServerSocket welcomeSocket = new ServerSocket(port)) {
 
             // 연결 소켓
             Socket connection;
