@@ -49,6 +49,10 @@ public class RequestHandler implements Runnable{
                 MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
                 User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
                 memoryUserRepository.addUser(user);
+
+                byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
+                response302Header(dos, body.length);
+                return;
             }
             //회원가입 GET
             /*if (requestPath.contains("/user/signup?")) {
@@ -99,6 +103,15 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Location: /\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
