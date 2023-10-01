@@ -71,6 +71,10 @@ public class RequestHandler implements Runnable {
                 else if (requestURL.equals("/user/login.html")) {
                     sendFile(dos, WEB_PORT + "/user/login.html");
                 }
+                // 요구사항 5
+                else if (requestURL.equals("/user/login_failed.html")) {
+                    sendFile(dos, WEB_PORT + "/user/login_failed.html");
+                }
                 //404
                 else {
                     send404NotFound(dos);
@@ -92,7 +96,7 @@ public class RequestHandler implements Runnable {
                     String password = querySplit[1].split("=")[1];
                     String name = querySplit[2].split("=")[1];
                     String email = querySplit[3].split("=")[1];
-                    log.log(Level.INFO, "userId = " + userId + " pw = " + password + " name = " + name + " email = " + email);
+                    log.log(Level.INFO, "SIGNUP | userId = " + userId + " pw = " + password + " name = " + name + " email = " + email);
 
                     User user = new User(userId, password, name, email);
                     MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
@@ -100,10 +104,26 @@ public class RequestHandler implements Runnable {
 
                     // 요구사항 4
                     sendRedirect(dos, "/");
+                    return;
                 }
-
+                // 요구사항 5
                 if (requestURL.equals("/user/login")) {
+                    String[] querySplit = requestBody.split("&");
+                    String userId = querySplit[0].split("=")[1];
+                    String password = querySplit[1].split("=")[1];
+                    log.log(Level.INFO, "LOGIN | userId = " + userId + " pw = " + password);
 
+                    MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                    User user = memoryUserRepository.findUserById(userId);
+                    if (user != null && user.getPassword().equals(password)) {
+                        response302Cookie(dos, "true", "/");
+
+                        return;
+                    } else {
+                        sendRedirect(dos, "/user/login_failed.html");
+                    }
+
+                    log.log(Level.INFO, "return findUserById | " + user);
                 }
             }
 
@@ -115,11 +135,41 @@ public class RequestHandler implements Runnable {
         }
     }
 
+    private void response200Cookie(DataOutputStream dos, String loginStatus) {
+        try {
+            log.log(Level.INFO, "HTTP 200 OK");
+
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+
+            dos.writeBytes("Cookie: logined=" + loginStatus + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Cookie(DataOutputStream dos, String loginStatus, String location) {
+        try {
+            log.log(Level.INFO, "HTTP 302 Redirect | Cookie");
+
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+
+            dos.writeBytes("Location: http://localhost:8080" + location + "\r\n");
+            dos.writeBytes("Set-Cookie: logined=" + loginStatus + "\r\n");
+
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
     private void sendRedirect(DataOutputStream dos, String location) {
         try {
-            log.log(Level.INFO, "HTTP 302 Found");
+            log.log(Level.INFO, "HTTP 302 Redirect");
 
-            dos.writeBytes("HTTP/1.1 302 Found\r\n");
+            dos.writeBytes("HTTP/1.1 302 Redirect\r\n");
             dos.writeBytes("Location: http://localhost:8080" + location + "\r\n");
             dos.writeBytes("\r\n");
             dos.flush();
