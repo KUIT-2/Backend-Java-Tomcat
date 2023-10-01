@@ -27,23 +27,13 @@ public class RequestHandler implements Runnable {
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            int contentLength = 0;
-            while (true) {
-                String line = br.readLine();
-                if (line.equals("")) {
-                    break;
-                }
-                if (line.startsWith("Content-Length")) {
-                    contentLength = Integer.parseInt(line.split(": ")[1]);
-                }
-            }
-
+            String startLine = br.readLine();
+            String requestPath = parseRequestPath(startLine);
+            int contentLength = parseContentLength(br);
             String requestBody = IOUtils.readBody(br, contentLength);
-            String requestPath = parseRequestPath(br);
 
-            if (requestPath.endsWith(".css")) {
-                handleCssRequest(dos, requestPath);
-            } else if (requestPath.equals("/user/signup")) {
+
+           if (requestPath.equals("/user/signup")) {
                 handleFormSubmission(requestBody, dos);
             } else if (requestPath.equals("/login")) {
                 handleLogin(requestBody, dos);
@@ -60,10 +50,20 @@ public class RequestHandler implements Runnable {
             log.log(Level.SEVERE, e.getMessage());
         }
     }
+    private String parseRequestPath(String startLine) {
+        String[] tokens = startLine.split(" ");
+        return tokens.length > 1 ? tokens[1] : "/";
+    }
 
-    private String parseRequestPath(BufferedReader br) throws IOException {
-        String[] requestLine = br.readLine().split(" ");
-        return requestLine.length > 1 ? requestLine[1] : "/";
+    private int parseContentLength(BufferedReader br) throws IOException {
+        int contentLength = 0;
+        String line;
+        while ((line = br.readLine()) != null && !line.isEmpty()) {
+            if (line.startsWith("Content-Length:")) {
+                contentLength = Integer.parseInt(line.split(":")[1].trim());
+            }
+        }
+        return contentLength;
     }
 
     private void serverFile(String filePath, DataOutputStream dos) {
@@ -71,7 +71,7 @@ public class RequestHandler implements Runnable {
             File file = new File(filePath);
             if (file.exists()) {
                 byte[] fileData = Files.readAllBytes(file.toPath());
-                response200Header(dos, fileData.length);
+                response200Header(dos, fileData.length);  // 수정: Content-Length 설정
                 responseBody(dos, fileData);
             } else {
                 String notFoundMessage = "404 Not Found: " + filePath;
@@ -102,7 +102,7 @@ public class RequestHandler implements Runnable {
 
     private void handleCssRequest(DataOutputStream dos, String requestPath) {
         try {
-            String cssFilePath = "webapp" + requestPath;
+            String cssFilePath = "webapp" + requestPath;  // 수정: CSS 파일 경로 설정
             File file = new File(cssFilePath);
 
             if (file.exists()) {
@@ -119,6 +119,7 @@ public class RequestHandler implements Runnable {
             log.log(Level.SEVERE, e.getMessage());
         }
     }
+
 
     private void handleUserListRequest(DataOutputStream dos) {
         try {
@@ -138,6 +139,17 @@ public class RequestHandler implements Runnable {
             log.log(Level.SEVERE, e.getMessage());
         }
     }
+
+    private String readRequestBody(BufferedReader br, int contentLength) throws IOException {
+        StringBuilder requestBody = new StringBuilder();
+
+        for (int i = 0; i < contentLength; i++) {
+            requestBody.append((char) br.read());
+        }
+
+        return requestBody.toString();
+    }
+
 
     private void handleLogin(String requestBody, DataOutputStream dos) {
         Map<String, String> formDataMap = HttpRequestUtils.parseQueryParameter(requestBody);
