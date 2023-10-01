@@ -9,6 +9,9 @@ public class RequestHandler implements Runnable{
     Socket connection;
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
 
+    private static final String WEBAPP_PATH = "/Users/jaeyeon/KUIT_Missions/Backend-Java-Tomcat/webapp/";
+
+
     public RequestHandler(Socket connection) {
         this.connection = connection;
     }
@@ -21,7 +24,7 @@ public class RequestHandler implements Runnable{
             DataOutputStream dos = new DataOutputStream(out);
 
             String line =  br.readLine();
-            if (line != null && (line.startsWith("GET / ") || line.startsWith("GET /index.html"))) {
+            if (line != null && (line.startsWith("GET / ") || (line.startsWith("GET /index.html")))) {
                 byte[] body = loadFile("index.html");
                 if (body != null) {
                     response200Header(dos, body.length);
@@ -38,10 +41,22 @@ public class RequestHandler implements Runnable{
         }
     }
 
+
     private byte[] loadFile(String filename) throws IOException {
-        File file = new File(filename);
-        if(file.exists()) {
-            return java.nio.file.Files.readAllBytes(file.toPath());
+        File file = new File(WEBAPP_PATH + filename);
+        if (file.exists() && file.isFile()) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    bos.write(buffer, 0, bytesRead);
+                }
+
+                return bos.toByteArray();
+            }
         }
         return null;
     }
