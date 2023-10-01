@@ -85,6 +85,66 @@ public class RequestHandler implements Runnable{
 
             }
 
+            if (line != null && (line.startsWith("GET /user/login.html"))) {
+                byte[] body = loadFile("user/login.html");
+                if (body != null) {
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                } else {
+                    byte[] notFoundBody = "404 Not Found".getBytes();
+                    response404Header(dos, notFoundBody.length);
+                    responseBody(dos, notFoundBody);
+                }
+            }
+
+            if (line != null && line.startsWith("POST /user/login")) {
+                while (true) {
+                    line = br.readLine();
+                    if (line.equals("")) {
+                        break;
+                    }
+
+                    if (line.startsWith("Content-Length")) {
+                        contentLength = Integer.parseInt(line.split(": ")[1]);
+                    }
+                }
+                char[] bodyChars = new char[contentLength];
+                br.read(bodyChars, 0, contentLength);
+                String requestBody = new String(bodyChars);
+
+                Map<String, String> bodyParams = parseQueryString(requestBody);
+
+                String userId = bodyParams.get("userId");
+                String password = bodyParams.get("password");
+
+                User loginUser = MemoryUserRepository.getInstance().findUserById(userId);
+
+                if (loginUser != null && loginUser.getPassword().equals(password)) {
+                    try{
+                        dos.writeBytes("HTTP/1.1 302Found \r\n");
+                        dos.writeBytes("Location: " + "/" + "\r\n");
+                        dos.writeBytes("Set-Cookie: logined=true \r\n");
+                        dos.writeBytes("\r\n");
+                    } catch (IOException e) {
+                        log.log(Level.SEVERE, e.getMessage());
+                    }
+                } else {
+                    byte[] body = loadFile("user/login_failed.html");
+                    if (body != null) {
+                        response200Header(dos, body.length);
+                        responseBody(dos, body);
+                    } else {
+                        byte[] notFoundBody = "404 Not Found".getBytes();
+                        response404Header(dos, notFoundBody.length);
+                        responseBody(dos, notFoundBody);
+                    }
+                }
+
+            }
+
+
+
+
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
