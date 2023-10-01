@@ -22,7 +22,7 @@ public class RequestHandler implements Runnable {
 
     @Override
     public void run() {
-        log.log(Level.INFO, "New Client Connect! Connected IP : " + connection.getInetAddress() + ", Port : " + connection.getPort());
+        log.log(Level.INFO, "New Client Connect! Connected IP : " + connection.getInetAddress().getHostAddress() + ", Port : " + connection.getPort());
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
@@ -32,20 +32,35 @@ public class RequestHandler implements Runnable {
             int contentLength = parseContentLength(br);
             String requestBody = IOUtils.readBody(br, contentLength);
 
-
-           if (requestPath.equals("/user/signup")) {
-                handleFormSubmission(requestBody, dos);
-            } else if (requestPath.equals("/login")) {
-                handleLogin(requestBody, dos);
+            if (requestPath.endsWith(".css")) {
+                handleCssRequest(dos, requestPath);
+            } else if (requestPath.equals("/user/signup")) {
+                if (startLine.contains("GET")) {
+                    response302Header(dos, "/user/form.html");
+                } else if (startLine.contains("POST")) {
+                    handleFormSubmission(requestBody, dos);
+                }
+            } else if (requestPath.equals("/user/login")) {
+                if (startLine.contains("GET")) {
+                    serverFile("webapp/user/login.html", dos);
+                } else if (startLine.contains("POST")) {
+                    handleLogin(requestBody, dos);
+                }
             } else if (requestPath.equals("/user/list")) {
-                handleUserListRequest(dos);
+                // Check for the logined cookie
+                if (startLine.contains("GET") && startLine.contains("Cookie: logined=true")) {
+                    handleUserListRequest(dos);
+                } else {
+                    response302Header(dos, "/user/login.html");
+                }
             } else if (requestPath.equals("/") || requestPath.equals("/index.html")) {
                 serverFile("webapp/index.html", dos);
             } else if (requestPath.equals("/form.html")) {
-                serverFile("user/form.html", dos);
+                serverFile("webapp/user/form.html", dos);
             } else {
                 serverFile(requestPath, dos);
             }
+
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
@@ -96,18 +111,18 @@ public class RequestHandler implements Runnable {
         User newUser = new User(userId, password, name, email);
         userRepository.addUser(newUser);
 
-        String redirectUrl = "/login.html";
-        response302Header(dos, redirectUrl);
+        String redirectUrl = "/user/login.html";
+        response302HeaderWithCookie(dos, redirectUrl);
     }
 
     private void handleCssRequest(DataOutputStream dos, String requestPath) {
         try {
-            String cssFilePath = "webapp" + requestPath;  // 수정: CSS 파일 경로 설정
+            String cssFilePath = "webapp" + requestPath;
             File file = new File(cssFilePath);
 
             if (file.exists()) {
                 byte[] fileData = Files.readAllBytes(file.toPath());
-                response200Header(dos, fileData.length);
+                response200HeaderWithContentType(dos, fileData.length, "text/css");
                 responseBody(dos, fileData);
             } else {
                 String notFoundMessage = "404 Not Found: " + requestPath;
@@ -123,11 +138,11 @@ public class RequestHandler implements Runnable {
 
     private void handleUserListRequest(DataOutputStream dos) {
         try {
-            String userListPagePath = "webapp/user/userlist.html";
+            String userListPagePath = "webapp/user/list.html";
             File file = new File(userListPagePath);
             if (file.exists()) {
                 byte[] fileData = Files.readAllBytes(file.toPath());
-                response200Header(dos, fileData.length);
+                response200HeaderWithContentType(dos, fileData.length, "text/html");
                 responseBody(dos, fileData);
             } else {
                 String notFoundMessage = "404 Not Found: " + userListPagePath;
@@ -161,9 +176,11 @@ public class RequestHandler implements Runnable {
         if (userRepository.isValidUser(userId, password)) {
             response302Header(dos, "/index.html");
         } else {
-            response302Header(dos, "/login_failed.html");
+            response302Header(dos, "/user/login_failed.html");
         }
     }
+
+
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
@@ -176,11 +193,33 @@ public class RequestHandler implements Runnable {
         }
     }
 
-    private void response302Header(DataOutputStream dos, String redirectUrl) {
+    private void response200HeaderWithContentType(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
         try {
-            dos.writeBytes("HTTP/1.1 302 Found\r\n");
-            dos.writeBytes("Location: " + redirectUrl + "\r\n");
-            dos.writeBytes("Set-Cookie: logined=true\r\n");
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: " + contentType + ";charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302HeaderWithCookie(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("Set-Cookie: logined=true" + "\r\n");
+
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
@@ -189,7 +228,7 @@ public class RequestHandler implements Runnable {
 
     private void response404Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
-            dos.writeBytes("HTTP/1.1 404 Not Found \r\n");
+            dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
