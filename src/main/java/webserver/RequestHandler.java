@@ -63,6 +63,7 @@ public class RequestHandler implements Runnable{
                 String email = queryParams.get("email");
 
                 User newUser = new User(userId, password, name, email);
+                System.out.println(newUser + "\n\n");
                 MemoryUserRepository.getInstance().addUser(newUser);
 
                 redirectResponse(dos, "/");
@@ -71,16 +72,6 @@ public class RequestHandler implements Runnable{
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
-        }
-    }
-
-    private void redirectResponse(DataOutputStream dos, String locaion) {
-        try{
-            dos.writeBytes("HTTP/1.1 302Found \r\n");
-            dos.writeBytes("Location: " + locaion + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
@@ -116,6 +107,15 @@ public class RequestHandler implements Runnable{
         return null;
     }
 
+    private void redirectResponse(DataOutputStream dos, String locaion) {
+        try{
+            dos.writeBytes("HTTP/1.1 302Found \r\n");
+            dos.writeBytes("Location: " + locaion + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
         try {
