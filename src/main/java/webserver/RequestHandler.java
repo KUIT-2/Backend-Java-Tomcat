@@ -37,6 +37,7 @@ public class RequestHandler implements Runnable{
                 byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\form.html"));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
+                return;
             }
             //회원가입 POST
             if (requestPath.equals("/user/signup")) {
@@ -48,7 +49,7 @@ public class RequestHandler implements Runnable{
                 User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
                 memoryUserRepository.addUser(user);
 
-                response302Header(dos);
+                response302Header(dos, "/");
                 return;
             }
             //로그인 화면 GET
@@ -56,12 +57,14 @@ public class RequestHandler implements Runnable{
                 byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login.html"));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
+                return;
             }
             //로그인 failed
             if (requestPath.equals("/user/login_failed")) {
                 byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\login_failed.html"));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
+                return;
             }
             //로그인 요청 POST
             if (requestPath.equals("/user/login")) {
@@ -81,7 +84,19 @@ public class RequestHandler implements Runnable{
                 } else {
                     response302HeaderLogin(dos, "/user/login_failed", false);
                 }
+                return;
             }
+            //User List 출력
+            if (requestPath.equals("/user/userList") || requestPath.equals("/user/list.html")) {
+                if (getIsRequestLoginedTrue(br)) {
+                    byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\list.html"));
+                    response200Header(dos, body.length);
+                    responseBody(dos, body);
+                    return;
+                }
+                response302Header(dos, "/user/login.html");
+            }
+            //그 외에는 메인
             byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
             response200Header(dos, body.length);
             responseBody(dos, body);
@@ -106,6 +121,22 @@ public class RequestHandler implements Runnable{
         return contentLength;
     }
 
+    private boolean getIsRequestLoginedTrue(BufferedReader br) throws IOException {
+        boolean isLogined = false;
+        while (true) {
+            final String line = br.readLine();
+            if (line.equals("")) {
+                break;
+            }
+            // header info
+            if (line.contains("logined")) {
+                System.out.println("eiwjofjweoifjweoif");
+                isLogined = Boolean.parseBoolean(line.split("=")[1]);
+            }
+        }
+        return isLogined;
+    }
+
     private String getQuery(String requestPath) {
         int index = requestPath.indexOf('?');
         if (index == -1) {
@@ -125,10 +156,10 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private void response302Header(DataOutputStream dos) {
+    private void response302Header(DataOutputStream dos, String endpoint) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
-            dos.writeBytes("Location: /\r\n");
+            dos.writeBytes("Location: " + endpoint + "\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
@@ -137,8 +168,8 @@ public class RequestHandler implements Runnable{
     private void response302HeaderLogin(DataOutputStream dos, String endPoint, Boolean logined) {
         try {
             dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Set-Cookie: logined=" + logined.toString() + "\r\n");
             dos.writeBytes("Location: " + endPoint + "\r\n");
-            dos.writeBytes("Cookie: logined=" + logined.toString());
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
