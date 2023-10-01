@@ -16,7 +16,6 @@ public class RequestHandler implements Runnable{
 
     private static final String WEBAPP_PATH = "/Users/jaeyeon/KUIT_Missions/Backend-Java-Tomcat/webapp/";
 
-
     public RequestHandler(Socket connection) {
         this.connection = connection;
     }
@@ -28,9 +27,14 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            String line = br.readLine();
+            String line = br.readLine(); // '\r', '\n' , EOF 를 구분자로 한 줄을 읽어온다.
             int contentLength = 0;
 
+//            HttpRequest httpRequest = HttpRequest.from(br);
+//            HttpResponse httpResponse = new HttpResponse(dos);
+
+
+            //요구사항 1: index.html 반환
             if (line != null && (line.startsWith("GET / ") || (line.startsWith("GET /index.html")))) {
                 byte[] body = loadFile("index.html");
                 if (body != null) {
@@ -43,6 +47,8 @@ public class RequestHandler implements Runnable{
                 }
             }
 
+
+            //요구사항 2: POST 방식으로 회원가입하기
             if (line != null && (line.startsWith("GET /user/form.html"))) {
                 byte[] body = loadFile("user/form.html");
                 if (body != null) {
@@ -56,21 +62,23 @@ public class RequestHandler implements Runnable{
             }
 
             if (line != null && line.startsWith("POST /user/signup")) {
-                while (true) {
+
+                while (true) {// HTTP 요청의 헤더 부분을 읽어서 요청 바디의 길이를 파악
                     line = br.readLine();
-                    if (line.equals("")) {
+                    if (line.equals("")) { //빈 줄을 만나면 헤더 부분의 읽기를 중지
                         break;
                     }
-
                     if (line.startsWith("Content-Length")) {
-                        contentLength = Integer.parseInt(line.split(": ")[1]);
+                        contentLength = Integer.parseInt(line.split(": ")[1]); //Content-Length 헤더의 값을 파싱하여 contentLength 변수에 저장. ex) 'Content-Length: 1234' 에서 1234 추출
                     }
                 }
-                char[] bodyChars = new char[contentLength];
-                br.read(bodyChars, 0, contentLength);
-                String requestBody = new String(bodyChars);
 
-                Map<String, String> bodyParams = parseQueryString(requestBody);
+                //HTTP 요청의 본문 부분을 읽고 사용자의 정보를 추출해 새로운 사용자를 저장하는 작업을 수행, 이후 클라이언트에 리다이렉션 응답
+                char[] bodyChars = new char[contentLength];
+                br.read(bodyChars, 0, contentLength); //요청 본문의 내용을 bodyChars에 읽어들임
+                String requestBody = new String(bodyChars); //문자배열을 문자열로 변환 후 내용을 requestBody에 저장
+
+                Map<String, String> bodyParams = parseQueryString(requestBody); //("userId=John&password=1234") 형태의 쿼리 문자열을 파싱하여 키와 값을 가지는 맵(bodyParams)으로 변환
 
                 String userId = bodyParams.get("userId");
                 String password = bodyParams.get("password");
@@ -79,12 +87,12 @@ public class RequestHandler implements Runnable{
 
                 User newUser = new User(userId, password, name,email);
 
-                MemoryUserRepository.getInstance().addUser(newUser);
+                MemoryUserRepository.getInstance().addUser(newUser); //MemoryUserRepository 저장소에 새로운 사용자 추가
 
-                redirectResponse(dos, "/");
-
+                redirectTo(dos, "/"); //클라이언트는 지정된 위치 "/" 로 다시 요청을 보냄.
             }
 
+            //로그인 페이지 이동
             if (line != null && (line.startsWith("GET /user/login.html"))) {
                 byte[] body = loadFile("user/login.html");
                 if (body != null) {
@@ -97,6 +105,7 @@ public class RequestHandler implements Runnable{
                 }
             }
 
+            //요구사항 5: 로그인 하기
             if (line != null && line.startsWith("POST /user/login")) {
                 while (true) {
                     line = br.readLine();
@@ -123,7 +132,7 @@ public class RequestHandler implements Runnable{
                     try{
                         dos.writeBytes("HTTP/1.1 302Found \r\n");
                         dos.writeBytes("Location: " + "/" + "\r\n");
-                        dos.writeBytes("Set-Cookie: logined=true \r\n");
+                        dos.writeBytes("Set-Cookie: logined=true \r\n"); //유저가 동일하다면 쿠키 설정
                         dos.writeBytes("\r\n");
                     } catch (IOException e) {
                         log.log(Level.SEVERE, e.getMessage());
@@ -142,7 +151,9 @@ public class RequestHandler implements Runnable{
 
             }
 
+            //요구사항6 :사용자 목록 출력
             if (line != null && line.startsWith("GET /user/userList")) {
+
                 boolean loggedIn = false;
                 while(!(line = br.readLine()).equals("")) {
                     if(line.startsWith("Cookie")) {
@@ -246,15 +257,7 @@ public class RequestHandler implements Runnable{
         return null;
     }
 
-    private void redirectResponse(DataOutputStream dos, String locaion) {
-        try{
-            dos.writeBytes("HTTP/1.1 302Found \r\n");
-            dos.writeBytes("Location: " + locaion + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
+
 
     private void response200HeaderWithContentType(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
         try {
@@ -272,6 +275,16 @@ public class RequestHandler implements Runnable{
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void redirectTo(DataOutputStream dos, String locaion) {
+        try{
+            dos.writeBytes("HTTP/1.1 302Found \r\n");
+            dos.writeBytes("Location: " + locaion + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
