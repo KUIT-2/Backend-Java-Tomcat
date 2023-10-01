@@ -68,7 +68,18 @@ public class RequestHandler implements Runnable{
                 body = Files.readAllBytes(Paths.get(ROOT_URL + requestTarget));
             }
 
-            //요구사항 2번
+            //요구사항 2번 - GET
+            if (httpMethod.equals("GET")&& requestTarget.contains("/user/signup")){
+                String queryString = requestTarget.split("\\?")[1];
+                log.log(Level.INFO, queryString);
+                Map<String, String> queryParameter = parseQueryParameter(queryString);
+                User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
+                repository.addUser(user);
+                response302Header(dos,"/index.html");
+                return;
+            }
+
+            //요구사항 3번 - POST
             if (httpMethod.equals("POST")&& requestTarget.endsWith("/user/signup")){
                 String queryString = IOUtils.readData(br, requestContentLength);
                 log.log(Level.INFO, queryString);
