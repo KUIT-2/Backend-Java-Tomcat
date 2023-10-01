@@ -6,6 +6,8 @@ import model.User;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,6 +26,8 @@ public class RequestHandler implements Runnable {
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
+
+            byte[] body = new byte[0];
 
             String requestLine = br.readLine();
             log.log(Level.INFO, requestLine);
@@ -48,16 +52,26 @@ public class RequestHandler implements Runnable {
 //            log.log(Level.INFO, "httpMethod: " + request[0] + "requestURL: " + request[1] + "httpVersion: " + request[2]);
 
             if (httpMethod.equals("GET")) {
+                //요구사항 1
                 if (requestURL.equals("/") || requestURL.equals("/index.html")) {
                     sendFile(dos, WEB_PORT + "/index.html");
-                } else if (requestURL.equals("/user/form.html")) {
+                }
+                // 요구사항 2
+                else if (requestURL.equals("/user/form.html")) {
                     sendFile(dos, WEB_PORT + "/user/form.html");
-                } else if (requestURL.equals("/user/signup")) {
+                }
+                // 요구사항 7
+                else if (requestURL.equals("/css/styles.css")) {
+                    body = Files.readAllBytes(Paths.get(WEB_PORT + requestURL));
+                    responseCSS(dos, body.length, "text/css");
+                    responseBody(dos, body);
+                    return;
                 } else {
                     send404NotFound(dos);
                 }
             }
 
+            //요구사항 2
             if (requestURL.equals("/user/signup")) {
                 String queryString = IOUtils.readData(br, requestContentLength);
                 log.log(Level.INFO, queryString);
@@ -81,8 +95,8 @@ public class RequestHandler implements Runnable {
             }
 
 //            byte[] body = "Hello World".getBytes();
-//            response200Header(dos, body.length);
-//            responseBody(dos, body);
+            response200Header(dos, body.length);
+            responseBody(dos, body);
 
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
@@ -112,6 +126,19 @@ public class RequestHandler implements Runnable {
             } else {
                 send404NotFound(dos);
             }
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void responseCSS(DataOutputStream dos, int lengthOfBodyContent, String contentType) {
+        try {
+            log.log(Level.INFO, "HTTP 200 OK");
+
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
