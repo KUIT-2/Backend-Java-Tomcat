@@ -98,6 +98,7 @@ public class RequestHandler implements Runnable {
                     MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
                     memoryUserRepository.addUser(user);
 
+                    // 요구사항 4
                     sendRedirect(dos, "/");
                 }
 
