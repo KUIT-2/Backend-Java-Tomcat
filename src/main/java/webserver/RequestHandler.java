@@ -7,10 +7,7 @@ import model.User;
 
 import java.io.*;
 import java.net.Socket;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -48,7 +45,9 @@ public class RequestHandler implements Runnable{
             String requestPath = parseRequestPath(br);
 
             //경로 따라서 처리
-            if(requestPath.equals("/user/signup")){
+            if (requestPath.endsWith(".css")) {
+                handleCssRequest(dos, requestPath);
+            } else if(requestPath.equals("/user/signup")){
                 // POST 방식으로 회원 가입 요청 처리
                 handleFormSubmission(requestBody, dos);
             } else if (requestPath.equals("/login")) {
@@ -116,6 +115,34 @@ public class RequestHandler implements Runnable{
         String redirectUrl = "/login.html";
         response302Header(dos, redirectUrl);
     }
+
+    // Modify the handleCssRequest method to use the response200Header and responseBody methods
+    private void handleCssRequest(DataOutputStream dos, String requestPath) {
+        try {
+            // Path to the CSS file
+            String cssFilePath = "webapp" + requestPath;
+            File file = new File(cssFilePath);
+
+            if (file.exists()) {
+                byte[] fileData = Files.readAllBytes(file.toPath());
+
+                // Send HTTP response with Content-Type: text/css
+                response200Header(dos, fileData.length);
+                responseBody(dos, fileData);
+            } else {
+                String notFoundMessage = "404 Not Found: " + requestPath;
+                byte[] notFoundBody = notFoundMessage.getBytes();
+
+                // Send HTTP response for file not found
+                response404Header(dos, notFoundBody.length);
+                responseBody(dos, notFoundBody);
+            }
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+
 
     /* 리스트 부분 */
     private void handleUserListRequest(DataOutputStream dos) {
