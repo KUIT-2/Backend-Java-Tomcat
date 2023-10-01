@@ -59,12 +59,12 @@ public class RequestHandler implements Runnable{
 
             log.info(requestTarget.toString());
             //요구사항 1번
-            if (httpMethod.equals("GET")&& (requestTarget.endsWith("index.html") ||requestTarget.endsWith("/"))){
+            if (httpMethod.equals("GET")&& requestTarget.endsWith("/")){
                 body = Files.readAllBytes(Paths.get(ROOT_URL + "/index.html"));
             }
 
-            //요구사항 2번
-            if (httpMethod.equals("GET")&& requestTarget.endsWith("form.html")){
+            //요구사항 1번, 2번, 5번
+            if (httpMethod.equals("GET")&& requestTarget.endsWith(".html")){
                 body = Files.readAllBytes(Paths.get(ROOT_URL + requestTarget));
             }
 
@@ -90,6 +90,18 @@ public class RequestHandler implements Runnable{
                 return;
             }
 
+            //요구사항 5번 - 로그인하기
+            if (httpMethod.equals("POST")&& requestTarget.endsWith("/user/login")) {
+                String requestBody = IOUtils.readData(br, requestContentLength);
+                log.log(Level.INFO, requestBody);
+                Map<String, String> queryParam= parseQueryParameter(requestBody);
+
+                User repositoryUser = repository.findUserById(queryParam.get("userId"));
+
+                login(dos, queryParam, repositoryUser);
+            }
+
+
             response200Header(dos, body.length);
             responseBody(dos, body);
 
@@ -98,10 +110,34 @@ public class RequestHandler implements Runnable{
         }
     }
 
+    private void login(DataOutputStream dos, Map<String, String> queryParam, User repositoryUser) {
+        if (repositoryUser!= null && repositoryUser.getPassword().equals(queryParam.get("password"))){
+            //헤더에 Cookie: logined=true를 추가
+            //index.html 화면으로 redirect
+            response302HeaderWithCookie(dos,"/index.html");
+        }else{
+            response302Header(dos,"/user/login_failed.html");
+            //response302Header(dos,ROOT_URL+"/user/login_failed.html");
+        }
+        return;
+    }
+
     private void response302Header(DataOutputStream dos, String path) {
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302HeaderWithCookie(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("Set-Cookie: logined=true" + "\r\n");
+
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
