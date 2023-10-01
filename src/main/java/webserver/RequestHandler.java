@@ -32,12 +32,26 @@ public class RequestHandler implements Runnable{
             String requestMethod = requestLine.split(" ")[0];
             String requestPath = requestLine.split(" ")[1];
             System.out.println(requestPath);
+            //회원가입 화면
             if (requestPath.equals("/user/form.html")) {
                 byte[] body = Files.readAllBytes(Paths.get("webapp\\user\\form.html"));
                 response200Header(dos, body.length);
                 responseBody(dos, body);
             }
-            if (requestPath.contains("/user/signup?")) {
+            //회원가입 POST
+            if (requestPath.equals("/user/signup")) {
+                int requestContentLength = getRequestContentLength(br);
+
+                String data = IOUtils.readData(br, requestContentLength);
+
+                Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(data);
+
+                MemoryUserRepository memoryUserRepository = MemoryUserRepository.getInstance();
+                User user = new User(requestMap.get("userId"), requestMap.get("password"), requestMap.get("name"), requestMap.get("email"));
+                memoryUserRepository.addUser(user);
+            }
+            //회원가입 GET
+            /*if (requestPath.contains("/user/signup?")) {
                 String requestQuery = getQuery(requestPath);
                 Map<String, String> requestMap = HttpRequestUtils.parseQueryParameter(requestQuery);
 
@@ -46,7 +60,7 @@ public class RequestHandler implements Runnable{
                 memoryUserRepository.addUser(user);
 
                 System.out.println(memoryUserRepository.findAll().size());
-            }
+            }*/
             byte[] body = Files.readAllBytes(Paths.get("webapp\\index.html"));
             response200Header(dos, body.length);
             responseBody(dos, body);
@@ -54,6 +68,21 @@ public class RequestHandler implements Runnable{
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
+    }
+
+    private int getRequestContentLength(BufferedReader br) throws IOException {
+        int contentLength = 0;
+        while (true) {
+            final String line = br.readLine();
+            if (line.equals("")) {
+                break;
+            }
+            // header info
+            if (line.startsWith("Content-Length")) {
+                contentLength = Integer.parseInt(line.split(": ")[1]);
+            }
+        }
+        return contentLength;
     }
 
     private String getQuery(String requestPath) {
