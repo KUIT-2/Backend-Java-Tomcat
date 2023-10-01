@@ -18,18 +18,10 @@ import static http.util.HttpRequestUtils.parseQueryParameter;
 
 public class RequestHandler implements Runnable{
     Socket connection;
-    private static final String ROOT_URL = "./webapp";
-    private static final String HOME_URL = "/index.html";
-    private static final String LOGIN_FAILED_URL = "/user/login_failed.html";
-    private static final String LOGIN_URL = "/user/login.html";
-    private static final String LIST_URL = "/user/list.html";
-    private final Repository repository;
-    private final Path homePath = Paths.get(ROOT_URL + HOME_URL);
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
 
     public RequestHandler(Socket connection) {
         this.connection = connection;
-        repository = MemoryUserRepository.getInstance();
     }
 
     @Override
@@ -39,7 +31,13 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            String requestLine = br.readLine();
+            HttpRequest httpRequest = HttpRequest.from(br);
+            HttpResponse httpResponse = HttpResponse.from(dos);
+
+            RequestMapping requestMapping = new RequestMapping(httpRequest, httpResponse);
+            requestMapping.proceed();
+
+            /*String requestLine = br.readLine();
             String[] requestParts = requestLine.split(" ");
             String method = requestParts[0]; //명령어
             String url = requestParts[1]; // url
@@ -115,14 +113,14 @@ public class RequestHandler implements Runnable{
             }
 
             response200Header(dos, body.length);
-            responseBody(dos, body);
+            responseBody(dos, body);*/
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
         }
     }
 
-    private void doLogin(User user, DataOutputStream dos, Map<String, String> queryPras){
+    /*private void doLogin(User user, DataOutputStream dos, Map<String, String> queryPras){
         if(user != null && user.getPassword().equals(queryPras.get("password"))){
             response302HeaderWithCookie(dos,HOME_URL);
             return;
@@ -180,6 +178,6 @@ public class RequestHandler implements Runnable{
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
         }
-    }
+    }*/
 
 }
