@@ -1,5 +1,9 @@
 package model;
 
+import http.util.HttpRequestUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class User {
@@ -8,11 +12,22 @@ public class User {
     private String name;
     private String email;
 
-    public User(String userId, String password, String name, String email) {
+    private User(String userId, String password, String name, String email) {
         this.userId = userId;
         this.password = password;
         this.name = name;
         this.email = email;
+    }
+
+    public static User fromQueryString(String queryString) {
+
+        Map<String, String> queryInfo = HttpRequestUtils.parseQueryParameter(queryString);
+        String userId = queryInfo.get("userId");
+        String password = queryInfo.get("password");
+        String name = queryInfo.get("name");
+        String email = queryInfo.get("email");
+
+        return new User(userId, password, name, email);
     }
 
     public String getUserId() {

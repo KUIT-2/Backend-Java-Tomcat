@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 public class WebServer {
     private static final int DEFAULT_PORT = 80;
     private static final int DEFAULT_THREAD_NUM = 50;
-    private static final Logger log = Logger.getLogger(WebServer.class.getName());
+    private static final Logger logger = Logger.getLogger(WebServer.class.getName());
 
     public static void main(String[] args) throws IOException {
         int port = DEFAULT_PORT;
@@ -23,6 +23,8 @@ public class WebServer {
 
         // TCP 환영 소켓
         try (ServerSocket welcomeSocket = new ServerSocket(port)){
+            String message = String.format("Web Application Server started on port %d.", port);
+            logger.info(message);
 
             // 연결 소켓
             Socket connection;
