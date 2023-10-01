@@ -13,6 +13,7 @@ public class MemoryUserRepository implements Repository {
     private MemoryUserRepository() {
     }
 
+    // 싱글톤 (DB로 쓰기 위함)
     public static MemoryUserRepository getInstance() {
         if (memoryUserRepository == null) {
             memoryUserRepository = new MemoryUserRepository();
@@ -21,14 +22,17 @@ public class MemoryUserRepository implements Repository {
         return memoryUserRepository;
     }
 
+    @Override
     public void addUser(User user) {
         users.put(user.getUserId(), user);
     }
 
+    @Override
     public User findUserById(String userId) {
         return users.get(userId);
     }
 
+    @Override
     public Collection<User> findAll() {
         return users.values();
     }
