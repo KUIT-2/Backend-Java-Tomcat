@@ -32,4 +32,11 @@ public class MemoryUserRepository implements Repository {
     public Collection<User> findAll() {
         return users.values();
     }
+
+    /*DB 유효성 확인*/
+    public boolean isValidUser(String userId, String password) {
+        User user = users.get(userId);
+        return user != null && user.getPassword().equals(password);
+    }
+
 }

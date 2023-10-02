@@ -15,13 +15,16 @@ public class WebServer {
 
     public static void main(String[] args) throws IOException {
         int port = DEFAULT_PORT;
+        //스레드 풀 생성
         ExecutorService service = Executors.newFixedThreadPool(DEFAULT_THREAD_NUM);
 
         if (args.length != 0) {
             port = Integer.parseInt(args[0]);
         }
 
-        // TCP 환영 소켓
+        /* TCP 환영 소켓
+        * 클라이언트의 연결이 수락되면 WebServer의 main메서드에서 ServerSocket을 생성하고 연결 기다림
+        * 연결이 수락되면 RequestHandler를 생성하고 클라이언트 소켓을 넘겨줍니다.*/
         try (ServerSocket welcomeSocket = new ServerSocket(port)){
 
             // 연결 소켓
