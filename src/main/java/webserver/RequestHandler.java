@@ -12,6 +12,11 @@ import java.util.logging.Logger;
 public class RequestHandler implements Runnable{
     Socket connection;
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
+    private static final String ROOT_URL = "./webapp";
+    private static final String HOME_URL = "/index.html";
+    private static final String LOGIN_FAILED_URL = "/user/login_failed.html";
+    private static final String LOGIN_URL = "/user/login.html";
+    private static final String LIST_URL = "/user/list.html";
 
     public RequestHandler(Socket connection) {
         this.connection = connection;
@@ -19,7 +24,6 @@ public class RequestHandler implements Runnable{
 
     @Override
     public void run() {
-        String indexPath = "./webapp/index.html";
         log.log(Level.INFO, "New Client Connect! Connected IP : " + connection.getInetAddress() + ", Port : " + connection.getPort());
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()){
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
@@ -31,8 +35,12 @@ public class RequestHandler implements Runnable{
             String requestUrl = startLines[1];
 
             byte[] body = new byte[0];
+
+            /**
+             * 요구사항 1번: index.html 반환하기
+             */
             if (httpMethod.equals("GET") && (requestUrl.equals("/") || requestUrl.equals("/index.html"))) {
-                body = Files.readAllBytes(Paths.get(indexPath));
+                body = Files.readAllBytes(Paths.get(ROOT_URL+HOME_URL));
             }
 
             response200Header(dos, body.length);
