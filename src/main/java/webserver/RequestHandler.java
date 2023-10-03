@@ -76,16 +76,26 @@ public class RequestHandler implements Runnable{
             //2번: GET 방식
             if (httpMethod.equals("GET") && urlQueryString[0].equals("/user/signup")) {
                 Map<String, String> queryParameter = getQueryParameter(urlQueryString[1]);
-                signupUser(dos, body, queryParameter);
+                signupUser(dos, queryParameter);
             }
 
             //3번: POST 방식
             if (httpMethod.equals("POST") && requestUrl.equals("/user/signup")) {
                 String queryString = IOUtils.readData(br, requestContentLength);
                 Map<String, String> queryParameter = getQueryParameter(queryString);
-                signupUser(dos, body, queryParameter);
+                signupUser(dos, queryParameter);
             }
 
+            /**
+             * 요구사항 5번: 로그인하기
+             */
+            if (requestUrl.equals("/user/login")) {
+                String queryString = IOUtils.readData(br, requestContentLength);
+                Map<String, String> queryParameter = getQueryParameter(queryString);
+                User user = repository.findUserById(queryParameter.get("userId"));
+                login(dos, queryParameter, user);
+                return;
+            }
 
             response200Header(dos, body.length);
             responseBody(dos, body);
@@ -96,11 +106,18 @@ public class RequestHandler implements Runnable{
 
     }
 
-    private void signupUser(DataOutputStream dos, byte[] body, Map<String, String> queryParameter) {
+    private void login(DataOutputStream dos, Map<String, String> queryParameter, User user) {
+        if (user!= null && user.getPassword().equals(queryParameter.get("password"))) {
+            response302HeaderWithCookie(dos,HOME_URL);
+            return;
+        }
+        response302Header(dos,LOGIN_FAILED_URL);
+    }
+
+    private void signupUser(DataOutputStream dos, Map<String, String> queryParameter) {
         User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
         repository.addUser(user);
         response302Header(dos, HOME_URL);
-        responseBody(dos,body);
         return;
     }
 
@@ -108,6 +125,18 @@ public class RequestHandler implements Runnable{
         try {
             dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
             dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+            dos.flush();
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302HeaderWithCookie(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("Set-Cookie: logined=true" + "\r\n");
             dos.writeBytes("\r\n");
             dos.flush();
         } catch (IOException e) {
