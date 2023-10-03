@@ -75,21 +75,22 @@ public class RequestHandler implements Runnable{
                 body = Files.readAllBytes(Paths.get(ROOT_URL+SIGNUP_URL));
             }
 
-            String[] queryString = requestUrl.split("\\?");
+            String[] urlQueryString = requestUrl.split("\\?");
             Map<String, String> queryParameter = new HashMap<>();
 
             //2번: GET 방식
-            if (httpMethod.equals("GET") && queryString[0].equals("/user/signup")) {
-                String[] queryParams = queryString[1].split("&");
+            if (httpMethod.equals("GET") && urlQueryString[0].equals("/user/signup")) {
+                String[] queryParams = urlQueryString[1].split("&");
                 signupUser(dos, body, queryParameter, queryParams);
             }
 
             //3번: POST 방식
-            if (httpMethod.equals("POST") && queryString[0].equals("/user/signup")) {
+            if (httpMethod.equals("POST") && requestUrl.equals("/user/signup")) {
                 String postQueryString = IOUtils.readData(br, requestContentLength);
                 String[] queryParams = postQueryString.split("&");
                 signupUser(dos, body, queryParameter, queryParams);
             }
+
 
             response200Header(dos, body.length);
             responseBody(dos, body);
