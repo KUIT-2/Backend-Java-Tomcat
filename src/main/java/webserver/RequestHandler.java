@@ -44,7 +44,7 @@ public class RequestHandler implements Runnable{
             String requestUrl = startLines[1];
 
             byte[] body = new byte[0];
-            int requestContentLength = 10000;
+            int requestContentLength = 0;
 
             while (true) {
                 final String line = br.readLine();
@@ -66,26 +66,29 @@ public class RequestHandler implements Runnable{
                 responseBody(dos, body);
             }
 
+
             /**
-             * 요구사항 2번: GET 방식으로 회원가입 하기
+             * 요구사헝 2,3,4번 GET, POST 방식으로 회원가입하기
              */
+            //form.html 반환
             if (httpMethod.equals("GET") && (requestUrl.equals("/user/form.html"))) {
                 body = Files.readAllBytes(Paths.get(ROOT_URL+SIGNUP_URL));
             }
 
             String[] queryString = requestUrl.split("\\?");
-            if (queryString[0].equals("/user/signup")) {
+            Map<String, String> queryParameter = new HashMap<>();
+
+            //2번: GET 방식
+            if (httpMethod.equals("GET") && queryString[0].equals("/user/signup")) {
                 String[] queryParams = queryString[1].split("&");
-                Map<String, String> queryParameter = new HashMap<>();
-                for (String queryParam : queryParams) {
-                    log.info(queryParam);
-                    String[] querySplit = queryParam.split("=");
-                    queryParameter.put(querySplit[0],querySplit[1]);
-                }
-                User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
-                repository.addUser(user);
-                response302Header(dos,HOME_URL);
-                responseBody(dos, body);
+                signupUser(dos, body, queryParameter, queryParams);
+            }
+
+            //3번: POST 방식
+            if (httpMethod.equals("POST") && queryString[0].equals("/user/signup")) {
+                String postQueryString = IOUtils.readData(br, requestContentLength);
+                String[] queryParams = postQueryString.split("&");
+                signupUser(dos, body, queryParameter, queryParams);
             }
 
             response200Header(dos, body.length);
@@ -95,6 +98,23 @@ public class RequestHandler implements Runnable{
             log.log(Level.SEVERE,e.getMessage());
         }
 
+    }
+
+    private void signupUser(DataOutputStream dos, byte[] body, Map<String, String> queryParameter, String[] queryParams) {
+        getQueryParameter(queryParams, queryParameter);
+        User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
+        repository.addUser(user);
+        response302Header(dos, HOME_URL);
+        responseBody(dos,body);
+        return;
+    }
+
+    private void getQueryParameter(String[] queryParams, Map<String, String> queryParameter) {
+        for (String queryParam : queryParams) {
+            log.info(queryParam);
+            String[] querySplit = queryParam.split("=");
+            queryParameter.put(querySplit[0],querySplit[1]);
+        }
     }
 
     private void response302Header(DataOutputStream dos, String path) {
