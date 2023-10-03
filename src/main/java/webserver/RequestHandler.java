@@ -45,6 +45,7 @@ public class RequestHandler implements Runnable{
 
             byte[] body = new byte[0];
             int requestContentLength = 0;
+            String cookie = "";
 
             while (true) {
                 final String line = br.readLine();
@@ -54,6 +55,11 @@ public class RequestHandler implements Runnable{
                 // header info
                 if (line.startsWith("Content-Length")) {
                     requestContentLength = Integer.parseInt(line.split(": ")[1]);
+                }
+
+                if (line.startsWith("Cookie")) {
+                    cookie = line.split(": ")[1];
+                    log.info(cookie);
                 }
             }
 
@@ -95,6 +101,17 @@ public class RequestHandler implements Runnable{
                 User user = repository.findUserById(queryParameter.get("userId"));
                 login(dos, queryParameter, user);
                 return;
+            }
+
+            /**
+             * 요구사항 6번: 사용자 목록 출력
+             */
+            if (requestUrl.equals("/user/userList")) {
+                if (!cookie.equals("logined=true")) {
+                    response302Header(dos,LOGIN_URL);
+                    return;
+                }
+                body = Files.readAllBytes(Paths.get(ROOT_URL + LIST_URL));
             }
 
             response200Header(dos, body.length);
