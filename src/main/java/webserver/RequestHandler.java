@@ -46,62 +46,11 @@ public class RequestHandler implements Runnable{
             HttpRequest httpRequest = HttpRequest.from(br);
             HttpResponse httpResponse = new HttpResponse(dos);
 
-            RequestMapper requestMapper = new RequestMapper(httpRequest,httpResponse);
+            RequestMapper requestMapper = new RequestMapper(httpRequest, httpResponse);
             requestMapper.proceed();
 
         } catch (IOException e) {
             log.log(Level.SEVERE,e.getMessage());
-        }
-    }
-
-    private void login(HttpResponse response, Map<String, String> queryParameter, User user) throws IOException {
-        if (user != null && user.getPassword().equals(queryParameter.get("password"))) {
-            response.put(HttpHeader.SET_COOKIE,"logined=true");
-            response.redirect(INDEX.getUrl());
-            return;
-        }
-        response.redirect(LOGIN_FAILED.getUrl());
-    }
-
-
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response200HeaderWithCss(DataOutputStream dos, int lengthOfBodyContent) {
-        try {
-            dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
-            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void response302Header(DataOutputStream dos, String path) {
-        try {
-            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
-            dos.writeBytes("Location: " + path + "\r\n");
-            dos.writeBytes("\r\n");
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
-        }
-    }
-
-    private void responseBody(DataOutputStream dos, byte[] body) {
-        try {
-            dos.write(body, 0, body.length);
-            dos.flush();
-        } catch (IOException e) {
-            log.log(Level.SEVERE, e.getMessage());
         }
     }
 
