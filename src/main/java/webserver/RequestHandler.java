@@ -57,38 +57,33 @@ public class RequestHandler implements Runnable{
                 }
             }
 
+            if (httpMethod.equals("GET") && requestUrl.endsWith(".html")) {
+                body = Files.readAllBytes(Paths.get(ROOT_URL + requestUrl));
+            }
+
             /**
              * 요구사항 1번: index.html 반환하기
              */
-            if (httpMethod.equals("GET") && (requestUrl.equals("/") || requestUrl.equals("/index.html"))) {
+            if (httpMethod.equals("GET") && (requestUrl.equals("/"))) {
                 body = Files.readAllBytes(Paths.get(ROOT_URL+HOME_URL));
-                response200Header(dos, body.length);
-                responseBody(dos, body);
             }
-
 
             /**
              * 요구사헝 2,3,4번 GET, POST 방식으로 회원가입하기
              */
-            //form.html 반환
-            if (httpMethod.equals("GET") && (requestUrl.equals("/user/form.html"))) {
-                body = Files.readAllBytes(Paths.get(ROOT_URL+SIGNUP_URL));
-            }
-
             String[] urlQueryString = requestUrl.split("\\?");
-            Map<String, String> queryParameter = new HashMap<>();
 
             //2번: GET 방식
             if (httpMethod.equals("GET") && urlQueryString[0].equals("/user/signup")) {
-                String[] queryParams = urlQueryString[1].split("&");
-                signupUser(dos, body, queryParameter, queryParams);
+                Map<String, String> queryParameter = getQueryParameter(urlQueryString[1]);
+                signupUser(dos, body, queryParameter);
             }
 
             //3번: POST 방식
             if (httpMethod.equals("POST") && requestUrl.equals("/user/signup")) {
-                String postQueryString = IOUtils.readData(br, requestContentLength);
-                String[] queryParams = postQueryString.split("&");
-                signupUser(dos, body, queryParameter, queryParams);
+                String queryString = IOUtils.readData(br, requestContentLength);
+                Map<String, String> queryParameter = getQueryParameter(queryString);
+                signupUser(dos, body, queryParameter);
             }
 
 
@@ -101,21 +96,12 @@ public class RequestHandler implements Runnable{
 
     }
 
-    private void signupUser(DataOutputStream dos, byte[] body, Map<String, String> queryParameter, String[] queryParams) {
-        getQueryParameter(queryParams, queryParameter);
+    private void signupUser(DataOutputStream dos, byte[] body, Map<String, String> queryParameter) {
         User user = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
         repository.addUser(user);
         response302Header(dos, HOME_URL);
         responseBody(dos,body);
         return;
-    }
-
-    private void getQueryParameter(String[] queryParams, Map<String, String> queryParameter) {
-        for (String queryParam : queryParams) {
-            log.info(queryParam);
-            String[] querySplit = queryParam.split("=");
-            queryParameter.put(querySplit[0],querySplit[1]);
-        }
     }
 
     private void response302Header(DataOutputStream dos, String path) {
@@ -130,7 +116,13 @@ public class RequestHandler implements Runnable{
     }
 
     private Map<String, String> getQueryParameter(String queryString) {
-        return null;
+        Map<String, String> queryParameter = new HashMap<>();
+        String[] queryParams = queryString.split("&");
+        for (String queryParam : queryParams) {
+            String[] querySplit = queryParam.split("=");
+            queryParameter.put(querySplit[0],querySplit[1]);
+        }
+        return queryParameter;
     }
 
     private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
