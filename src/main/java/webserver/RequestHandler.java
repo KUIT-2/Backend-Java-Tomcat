@@ -1,13 +1,31 @@
 package webserver;
 
+import db.MemoryUserRepository;
+import http.util.IOUtils;
+import model.User;
+
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static http.util.HttpRequestUtils.getQueryParameter;
+
 public class RequestHandler implements Runnable{
     Socket connection;
+
+    private static final String indexPath = "./webapp/index.html";
+    private static final String userFormPath = "./webapp/user/form.html";
+    private static final String loginPath = "./webapp/user/login.html";
+    private static final String loginFailPath = "./webapp/user/login_failed.html";
+    private static final String userListPath = "./webapp/user/list.html";
+    private static final String cssPath = "./webapp/css/styles.css";
     private static final Logger log = Logger.getLogger(RequestHandler.class.getName());
+
+    private final MemoryUserRepository repository = MemoryUserRepository.getInstance();
 
     public RequestHandler(Socket connection) {
         this.connection = connection;
@@ -20,8 +38,136 @@ public class RequestHandler implements Runnable{
             BufferedReader br = new BufferedReader(new InputStreamReader(in));
             DataOutputStream dos = new DataOutputStream(out);
 
-            byte[] body = "Hello World".getBytes();
-            response200Header(dos, body.length);
+//            HTML Request Message
+//            startLine 분석
+            String startLine = br.readLine();
+            System.out.println(startLine);
+            String[] startLineEntity = startLine.split(" ");
+            String method = startLineEntity[0];
+            String url = startLineEntity[1];
+            String version = startLineEntity[2];
+//            header 분석
+            int requestContentLength = 0;
+            Boolean cookie = false;
+            while (true) {
+                final String line = br.readLine();
+//                System.out.println(line);
+                if (line.equals("")) {  //header까지만
+                    break;
+                }
+                if (line.startsWith("Content-Length")) {    //method가 POST의 경우 body가 존재 따라서 Content-Length(body의 길이)가 존재
+//                    Content-Length: 54
+                    requestContentLength = Integer.parseInt(line.split(": ")[1]);
+                }
+                if (line.startsWith("Cookie")) {
+//                    Cookie: logined=true; Studio-67c3efe2=ac12c024-e90a-47ec-8f0e-e7e5bfef794f; Idea-14db931f=ced96671-df75-4a9c-b1b1-c2b4b443f986
+                    cookie = false;
+                    if (line.contains("true")) {
+                        cookie = true;
+                    }
+                }
+            }
+
+            byte[] body = "Hello Wrold".getBytes();
+
+//            GET / HTTP/1.1, GET /index.html HTTP/1.1
+            if (method.equals("GET") && requestHomePage(url)) {
+                try{
+                    body = Files.readAllBytes(Paths.get(indexPath));
+//                    body = Files.readAllBytes(new File(indexPath).toPath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+//            GET /css/styles.css HTTP/1.1
+//            Accept: text/css,*/*;q=0.1
+            if (method.equals("GET") && url.equals("/css/styles.css")) {
+                try{
+                    body = Files.readAllBytes(Paths.get(cssPath));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+//            GET /user/form.html HTTP/1.1
+            if (method.equals("GET") && url.equals("/user/form.html")) {
+                try{
+                    body = Files.readAllBytes(Paths.get(userFormPath));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+//            POST /user/signup HTTP/1.1
+//            userId=1&password=ji&name=ji&email=ji@naver.com
+            if (method.equals("POST") && url.equals("/user/signup")) {
+                String queryString = IOUtils.readData(br, requestContentLength);
+                System.out.println(queryString);
+                Map<String, String> queryParameter = getQueryParameter(queryString);
+                User newUser = new User(queryParameter.get("userId"), queryParameter.get("password"), queryParameter.get("name"), queryParameter.get("email"));
+                repository.addUser(newUser);
+                System.out.println(repository.findAll().stream().count());
+                response302Header(dos, "/index.html");
+                /*try{
+                    body = Files.readAllBytes(Paths.get(indexPath));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }*/
+            }
+
+//            GET /user/login.html HTTP/1.1
+            if (method.equals("GET") && url.equals("/user/login.html")) {
+                try{
+                    body = Files.readAllBytes(Paths.get(loginPath));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+//            POST /user/login HTTP/1.1
+            if (method.equals("POST") && url.equals("/user/login")) {
+                String queryString = IOUtils.readData(br, requestContentLength);
+                System.out.println(queryString);
+                Map<String, String> queryParameter = getQueryParameter(queryString);
+                User findUser = repository.findUserById(queryParameter.get("userId"));
+                if (findUser == null) {
+                    response302Header(dos, "/user/login_failed.html");
+                }
+                if (findUser != null) {
+                    Boolean a = findUser.getPassword().equals(queryParameter.get("password"));
+                    if (a) {
+                        response302WithCookieHeader(dos, "/index.html");
+                    }
+                    if (!a) {
+                        response302Header(dos, "/user/login_failed.html");
+                    }
+                }
+            }
+
+//            GET /user/login_failed HTTP/1.1
+            if (method.equals("GET") && url.equals("/user/login_failed.html")) {
+                try{
+                    body = Files.readAllBytes(Paths.get(loginFailPath));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+//            GET /user/userList HTTP/1.1
+            if (method.equals("GET") && url.equals("/user/userList")) {
+                if (cookie) {
+                    try{
+                        body = Files.readAllBytes(Paths.get(userListPath));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    response302Header(dos, "/index.html");
+                }
+            }
+
+            response200Header(dos, body.length, url);
             responseBody(dos, body);
 
         } catch (IOException e) {
@@ -29,11 +175,40 @@ public class RequestHandler implements Runnable{
         }
     }
 
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
+    private boolean requestHomePage(String target) {
+        return target.equals("/") || target.equals("/index.html");
+    }
+
+    private void response200Header(DataOutputStream dos, int lengthOfBodyContent, String url) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
-            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            if (url.contains(".css")) {
+                dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
+            } else {
+                dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            }
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.log(Level.SEVERE, e.getMessage());
+        }
+    }
+
+    private void response302WithCookieHeader(DataOutputStream dos, String path) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+            dos.writeBytes("Location: " + path + "\r\n");
+            dos.writeBytes("Cookie: logined=true \r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage());
